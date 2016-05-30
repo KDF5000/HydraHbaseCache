@@ -1,11 +1,7 @@
 package com.hydra.hydracache.client;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
-
-import org.apache.commons.lang.Validate;
-import org.apache.commons.logging.Log;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.HColumnDescriptor;
@@ -20,6 +16,7 @@ import org.apache.hadoop.hbase.client.Table;
 
 import redis.clients.jedis.HostAndPort;
 
+import com.hydra.hydracache.cache.Cache;
 import com.hydra.hydracache.client.service.HydraCacheClient;
 import com.hydra.hydracache.redis.RedisCluster;
 
@@ -27,22 +24,68 @@ public class HydraCacheClientImpl implements HydraCacheClient{
 	
 	private static Configuration conf = null;
 	private RedisCluster redisCluster = null;
+	private boolean cacheOn = false; //是否使用缓存
+	private boolean localCacheOn = false;//本地缓存
+	private Cache localCache = null; //本地in memory cache
 	
 	static{
 		conf = HBaseConfiguration.create();
 //		conf.set("hbase.zookeeper.quorum", "localhost");
 	}
 	
-	public HydraCacheClientImpl(){
-		initRedisCluster();
+	/**
+	 * 添加配置
+	 * @param name
+	 * @param value
+	 */
+	public void setConf(String name, String value){
+		if(HydraCacheClientImpl.conf!=null){
+			HydraCacheClientImpl.conf.set(name, value);
+		}
 	}
+	
+	public HydraCacheClientImpl(){
+	}
+	
+	/**
+	 * 
+	 * @param cacheOn boolean 是否使用缓存
+	 * @param list　如果使用缓存请提供redis节点的地址和端口，否则置null即可
+	 */
+	public HydraCacheClientImpl(boolean cacheOn, List<HostAndPort> list){
+		this.cacheOn = cacheOn;
+		if(this.cacheOn){
+			this.initRedisCluster(list);
+		}
+	}
+	/**
+	 * 
+	 * @param cacheOn
+	 * @param list
+	 * @param secondaryCacheOn
+	 */
+	public HydraCacheClientImpl(boolean cacheOn, List<HostAndPort> list, boolean localCacheOn){
+		this.cacheOn = cacheOn;
+		this.localCacheOn = localCacheOn;
+		
+		//redis分布式缓存
+		if(this.cacheOn){
+			this.initRedisCluster(list);
+		}
+		//二级缓存
+		if(this.localCacheOn){
+			this.localCache = new Cache();
+		}
+	}
+	
 	/**
 	 * init redis cluster 
 	 */
-	private void initRedisCluster(){
-		List<HostAndPort> list = new ArrayList<HostAndPort>();
-		list.add(new HostAndPort("127.0.0.1", 7000));
-		list.add(new HostAndPort("127.0.0.1", 7001));
+	private void initRedisCluster(List<HostAndPort> list){
+		if(list == null){
+			System.err.println("请制定redis节点的地址和端口");
+			System.exit(0);
+		}
 		this.redisCluster = new RedisCluster(list);
 	}
 	
@@ -143,10 +186,16 @@ public class HydraCacheClientImpl implements HydraCacheClient{
 	private String getDataFromCache(String key){
      	//tableName+"_"+rowKey+"_"+family+"_"+columnName
 		String val = null;
-		if(this.redisCluster == null){
-			System.out.println("Didn`t init redis cluster!");
-		}else{
+		if(this.localCacheOn && this.localCache != null){
+			val = this.localCache.get(key);
+			if(val !=null){
+				System.out.println(">>Load data from localCache!");
+				return val;
+			}
+		}
+		if(this.cacheOn == true && this.redisCluster != null){
 			val = this.redisCluster.get(key);
+			System.out.println(">>Load data from Redis!");
 		}
 		return val;
 	}
@@ -156,9 +205,10 @@ public class HydraCacheClientImpl implements HydraCacheClient{
 	 * @param val
 	 */
 	private void setData2Cache(String key, String val){
-		if(this.redisCluster == null){
-			System.out.println("Didn`t init redis cluster!");
-		}else{
+		if(this.localCacheOn == true){
+			this.localCache.set(key, val, 6000);
+		}
+		if(this.cacheOn == true && this.redisCluster != null){
 			this.redisCluster.set(key, val);
 		}
 	}
@@ -177,10 +227,10 @@ public class HydraCacheClientImpl implements HydraCacheClient{
 		String key = tableName+"_"+rowKey+"_"+family+"_"+columnName;
 		String valString = getDataFromCache(key);
 		if(valString != null){
-			System.out.println("load data from cache!");
 			return valString;
 		}
-		System.out.println("load data from hbase!");
+		
+		System.out.println(">>Load data from hbase!");
 		Table table = null;
 		Connection connection = null;
 		try {
