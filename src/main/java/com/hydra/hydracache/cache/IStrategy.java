@@ -25,6 +25,10 @@ public interface IStrategy<E> {
 	 */
 	public void delete(E node);
 	
-	
+	/**
+	 * 访问到了某个节点
+	 * @param node
+	 */
+	public void hitNode(E node);
 	
 }

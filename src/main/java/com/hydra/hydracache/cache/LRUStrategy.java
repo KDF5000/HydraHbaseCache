@@ -16,6 +16,7 @@ public class LRUStrategy<E> implements IStrategy<E> {
 		this.lruList.remove(node);
 		this.lruList.addFirst(node);
 	}
+	
 	public E delete() {
 		// TODO Auto-generated method stub
 		E node = this.lruList.getLast();
@@ -26,6 +27,10 @@ public class LRUStrategy<E> implements IStrategy<E> {
 	public void delete(E node) {
 		// TODO Auto-generated method stub
 		this.lruList.remove(node);
+	}
+	
+	public void hitNode(E node) {
+		// TODO Auto-generated method stub
 	}
 	
 }
