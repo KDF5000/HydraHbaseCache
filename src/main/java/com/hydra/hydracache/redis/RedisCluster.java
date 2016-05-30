@@ -13,6 +13,7 @@ public class RedisCluster {
 	private JedisCluster jcCluster = null;
 	private List<HostAndPort> hostList = null;
 	private Set<HostAndPort> jedisClusterNodes = null;
+	private static int DEFAULT_EXPIRE_TIME = 3600; //1 HOUR
 	
 	public RedisCluster(List<HostAndPort> hosts){
 		this.hostList = hosts;
@@ -41,12 +42,20 @@ public class RedisCluster {
 	 * @param key
 	 * @param value
 	 */
-	public void set(String key, String value){
+	public void set(String key, String value, int expireTime){
 		if(this.jcCluster == null){
 			System.out.println("please init cluster");
 			return ;
 		}
-		this.jcCluster.set(key, value);
+		this.jcCluster.setex(key, expireTime, value);
+	}
+	/**
+	 * 使用默认的过期时间(1 hour)
+	 * @param key
+	 * @param value
+	 */
+	public void set(String key, String value){
+		set(key, value, RedisCluster.DEFAULT_EXPIRE_TIME);
 	}
 	
 }

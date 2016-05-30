@@ -13,7 +13,7 @@ public class RedisClusterTest extends TestCase {
 		list.add(new HostAndPort("127.0.0.1", 7000));
 		list.add(new HostAndPort("127.0.0.1", 7001));
 		RedisCluster redisCluster = new RedisCluster(list);
-		redisCluster.set("hello", "world");
+		redisCluster.set("hello1", "world", 5);
 		System.out.println(redisCluster.get("hello1"));
 	}
 }

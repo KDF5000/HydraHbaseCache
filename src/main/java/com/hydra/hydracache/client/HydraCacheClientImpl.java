@@ -27,6 +27,7 @@ public class HydraCacheClientImpl implements HydraCacheClient{
 	private boolean cacheOn = false; //是否使用缓存
 	private boolean localCacheOn = false;//本地缓存
 	private Cache localCache = null; //本地in memory cache
+	private static int DEFAULT_EXPIRE_TIME = 3600;// 1 hour
 	
 	static{
 		conf = HBaseConfiguration.create();
@@ -203,17 +204,20 @@ public class HydraCacheClientImpl implements HydraCacheClient{
 	 * 
 	 * @param key
 	 * @param val
+	 * @param expire int seconds
 	 */
-	private void setData2Cache(String key, String val){
+	private void setData2Cache(String key, String val, int expire){
 		if(this.localCacheOn == true){
-			this.localCache.set(key, val, 6000);
+			this.localCache.set(key, val, expire);
 		}
 		if(this.cacheOn == true && this.redisCluster != null){
-			this.redisCluster.set(key, val);
+			System.out.println(">>set data to redis!");
+			this.redisCluster.set(key, val, expire);
 		}
 	}
+	
 	/**
-	 * 
+	 * 使用默认过期时间
 	 * @param tableName
 	 * @param rowKey
 	 * @param family
@@ -221,7 +225,20 @@ public class HydraCacheClientImpl implements HydraCacheClient{
 	 * @return
 	 */
 	public String get(String tableName, String rowKey, String family,
-			String columnName) {
+			String columnName){
+		return this.get(tableName, rowKey, family, columnName, HydraCacheClientImpl.DEFAULT_EXPIRE_TIME);
+	}
+	/**
+	 * 
+	 * @param tableName
+	 * @param rowKey
+	 * @param family
+	 * @param columnName
+	 * @param expireTime
+	 * @return
+	 */
+	public String get(String tableName, String rowKey, String family,
+			String columnName, int expireTime) {
 		// TODO Auto-generated method stub
 		//先判断缓存里有没有
 		String key = tableName+"_"+rowKey+"_"+family+"_"+columnName;
@@ -243,7 +260,9 @@ public class HydraCacheClientImpl implements HydraCacheClient{
 			String valueStr = new String(bytes);
 			System.out.println("get value: "+valueStr);
 			//set cache
-			this.setData2Cache(key, valueStr);
+			if(valueStr != null){
+				this.setData2Cache(key, valueStr, expireTime);
+			}
 			return valueStr;
 		} catch (IOException e) {
 			// TODO Auto-generated catch block

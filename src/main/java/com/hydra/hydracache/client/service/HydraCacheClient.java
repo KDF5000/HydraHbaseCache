@@ -26,18 +26,30 @@ public interface HydraCacheClient {
 	public void deleteTable(String tableName);
 	
 	/**
-	 * put key-value
-	 * @param key
+	 * @param tableName
+	 * @param rowKey
+	 * @param family
+	 * @param columnName
 	 * @param value
 	 */
 	public void put(String tableName,String rowKey, String family, String columnName, String value);
 	
 	/**
-	 * get value by key
-	 * @param key
-	 * @return <T> T
+	 * @param tableName
+	 * @param rowKey
+	 * @param family
+	 * @param columnName
+	 * @param expireTime
+	 * @return
+	 */
+	public String get(String tableName, String rowKey, String family,String columnName, int expireTime);
+	/**
+	 * 
+	 * @param tableName
+	 * @param rowKey
+	 * @param family
+	 * @param columnName
+	 * @return
 	 */
 	public String get(String tableName, String rowKey, String family,String columnName);
-	
-
 }
